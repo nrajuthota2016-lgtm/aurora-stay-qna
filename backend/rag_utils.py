@@ -3,8 +3,29 @@ from langchain_openai import ChatOpenAI
 import os
 
 # Retrieve the top-k relevant chunks from the vector store
-def retrieve(query: str, k: int = 2,vectorstore=None) -> list[str]:
-    results = vectorstore.similarity_search(query, k=k)
+def retrieve(
+    query: str,
+    k: int = 3,
+    vectorstore=None,
+    retrieval_mode: str = "mmr",
+    fetch_k: int | None = None,
+    lambda_mult: float = 0.3,
+) -> list[str]:
+    if vectorstore is None:
+        raise ValueError("vectorstore is required")
+
+    fetch_k = fetch_k or max(8, k * 4)
+
+    if retrieval_mode == "similarity":
+        results = vectorstore.similarity_search(query, k=k)
+    else:
+        # MMR improves diversity and usually reduces near-duplicate chunk retrieval.
+        results = vectorstore.max_marginal_relevance_search(
+            query,
+            k=k,
+            fetch_k=fetch_k,
+            lambda_mult=lambda_mult,
+        )
 
     # Return each chunk with its content and metadata
     return [
@@ -46,12 +67,15 @@ def generate(query, retrieved_chunks,model) -> str:
 # Define the full RAG pipeline combining retrieval and generation
 def rag(
     query: str,
-    k: int = 2,
+    k: int = 3,
     model_name: str = "gpt-4o-mini",
     temperature: float = 0.0,
     top_p: float = 1.0,
     max_tokens: int = 512,
-    vectorstore=None
+    vectorstore=None,
+    retrieval_mode: str = "mmr",
+    fetch_k: int | None = None,
+    lambda_mult: float = 0.3,
 ):
     # Create the generator model
     model = ChatOpenAI(
@@ -64,7 +88,14 @@ def rag(
     )
 
     # Retrieve relevant chunks
-    retrieved_chunks = retrieve(query=query, k=k,vectorstore=vectorstore)
+    retrieved_chunks = retrieve(
+        query=query,
+        k=k,
+        vectorstore=vectorstore,
+        retrieval_mode=retrieval_mode,
+        fetch_k=fetch_k,
+        lambda_mult=lambda_mult,
+    )
 
     # Generate answer using retrieved chunks
     answer = generate(
