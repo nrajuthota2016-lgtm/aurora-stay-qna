@@ -34,8 +34,33 @@ with st.sidebar:
         "k (chunks to retrieve)",
         min_value=1,
         max_value=10,
-        value=2,
+        value=3,
         help="Number of relevant chunks fetched from the vector store."
+    )
+
+    retrieval_mode = st.selectbox(
+        "Retrieval mode",
+        options=["mmr", "similarity"],
+        index=0,
+        help="MMR is recommended because it reduces duplicate chunks and improves answer grounding."
+    )
+
+    fetch_k = st.slider(
+        "MMR fetch_k",
+        min_value=4,
+        max_value=40,
+        value=12,
+        step=2,
+        help="Number of candidate chunks considered before selecting final k with MMR."
+    )
+
+    lambda_mult = st.slider(
+        "MMR lambda",
+        min_value=0.1,
+        max_value=0.9,
+        value=0.3,
+        step=0.1,
+        help="Lower values favor diversity; higher values favor raw similarity."
     )
 
     temperature = st.slider(
@@ -107,6 +132,9 @@ if st.button("Submit", type="primary"):
         payload = {
             "query": query,
             "k": k,
+            "retrieval_mode": retrieval_mode,
+            "fetch_k": fetch_k,
+            "lambda_mult": lambda_mult,
             "temperature": temperature,
             "max_tokens": max_tokens
         }
